@@ -70,6 +70,7 @@ pipeline {
                     """
 
                     sh 'kubectl apply -f deployment-dev.yaml'
+                    sh 'kubectl rollout status deployment/dev-deployment --timeout=120s'
                 }
             }
         }
@@ -77,7 +78,6 @@ pipeline {
         stage('Run Acceptance Tests') {
             steps {
                 script {
-
                     sh 'docker stop qa-tests || true'
                     sh 'docker rm qa-tests || true'
 
@@ -88,7 +88,6 @@ pipeline {
                     '''
 
                     sh 'docker build -t qa-tests -f Dockerfile.test .'
-
                     sh 'docker run --network host qa-tests'
 
                     sh '''
@@ -100,7 +99,6 @@ pipeline {
 
         stage('Run Security Checks') {
             steps {
-
                 sh 'docker pull public.ecr.aws/portswigger/dastardly:latest'
 
                 sh '''
@@ -116,7 +114,6 @@ pipeline {
         stage('Deploy to Prod Environment') {
             steps {
                 script {
-
                     sh """
                         sed -i 's|${DOCKER_IMAGE}:latest|${DOCKER_IMAGE}:${IMAGE_TAG}|' deployment-prod.yaml
                     """

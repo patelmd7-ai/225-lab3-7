@@ -75,27 +75,30 @@ pipeline {
             }
         }
 
-        stage('Run Acceptance Tests') {
-            steps {
-                script {
-                    sh 'docker stop qa-tests || true'
-                    sh 'docker rm qa-tests || true'
+       stage('Run Acceptance Tests') {
+    steps {
+        script {
+            sh 'docker stop qa-tests || true'
+            sh 'docker rm qa-tests || true'
 
-                    sh '''
-                        kubectl port-forward service/dev-service 18080:80 > /tmp/dev-port-forward.log 2>&1 &
-                        echo $! > /tmp/dev-port-forward.pid
-                        sleep 5
-                    '''
+            sh '''
+                pkill -f "kubectl port-forward.*18080:80" || true
+                sleep 2
 
-                    sh 'docker build -t qa-tests -f Dockerfile.test .'
-                    sh 'docker run --network host qa-tests'
+                kubectl port-forward deployment/dev-deployment 18080:80 > /tmp/dev-port-forward.log 2>&1 &
+                echo $! > /tmp/dev-port-forward.pid
+                sleep 5
+            '''
 
-                    sh '''
-                        kill $(cat /tmp/dev-port-forward.pid) || true
-                    '''
-                }
-            }
+            sh 'docker build -t qa-tests -f Dockerfile.test .'
+            sh 'docker run --network host qa-tests'
+
+            sh '''
+                kill $(cat /tmp/dev-port-forward.pid) || true
+            '''
         }
+    }
+}
 
         stage('Run Security Checks') {
             steps {

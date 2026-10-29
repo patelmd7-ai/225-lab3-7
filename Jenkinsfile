@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_CREDENTIALS_ID = 'roseaw-dockerhub'
         DOCKER_IMAGE = 'cithit/patelmd7'
-        IMAGE_TAG = "build-${BUILD_NUMBER}"
+        IMAGE_TAG = "lab3-7-build-${BUILD_NUMBER}"
         GITHUB_URL = 'https://github.com/patelmd7-ai/225-lab3-7.git'
         KUBECONFIG = credentials('patelmd7-225')
     }
@@ -32,6 +32,10 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
+
+                    // Show exactly which HTML Jenkins is about to build
+                    sh 'cat index.html'
+
                     docker.withRegistry(
                         'https://registry-1.docker.io',
                         'roseaw-dockerhub'
@@ -75,33 +79,36 @@ pipeline {
             }
         }
 
-       stage('Run Acceptance Tests') {
-    steps {
-        script {
-            sh 'docker stop qa-tests || true'
-            sh 'docker rm qa-tests || true'
+        stage('Run Acceptance Tests') {
+            steps {
+                script {
 
-            sh '''
-                pkill -f "kubectl port-forward.*18080:80" || true
-                sleep 2
+                    sh 'docker stop qa-tests || true'
+                    sh 'docker rm qa-tests || true'
 
-                kubectl port-forward deployment/dev-deployment 18080:80 > /tmp/dev-port-forward.log 2>&1 &
-                echo $! > /tmp/dev-port-forward.pid
-                sleep 5
-            '''
+                    sh '''
+                        pkill -f "kubectl port-forward.*18080:80" || true
+                        sleep 2
 
-            sh 'docker build -t qa-tests -f Dockerfile.test .'
-            sh 'docker run --network host qa-tests'
+                        kubectl port-forward deployment/dev-deployment 18080:80 > /tmp/dev-port-forward.log 2>&1 &
+                        echo $! > /tmp/dev-port-forward.pid
+                        sleep 5
+                    '''
 
-            sh '''
-                kill $(cat /tmp/dev-port-forward.pid) || true
-            '''
+                    sh 'docker build -t qa-tests -f Dockerfile.test .'
+
+                    sh 'docker run --network host qa-tests'
+
+                    sh '''
+                        kill $(cat /tmp/dev-port-forward.pid) || true
+                    '''
+                }
+            }
         }
-    }
-}
 
         stage('Run Security Checks') {
             steps {
+
                 sh 'docker pull public.ecr.aws/portswigger/dastardly:latest'
 
                 sh '''
@@ -117,6 +124,7 @@ pipeline {
         stage('Deploy to Prod Environment') {
             steps {
                 script {
+
                     sh """
                         sed -i 's|${DOCKER_IMAGE}:latest|${DOCKER_IMAGE}:${IMAGE_TAG}|' deployment-prod.yaml
                     """
